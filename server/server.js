@@ -3,7 +3,7 @@
 
 let bodyParser = require('body-parser');
 let express = require('express');
-
+let { ObjectID } = require('mongodb');
 
 let { mongoose } = require('./db/mongoose');
 let { Todo } = require('./models/todo');
@@ -30,11 +30,6 @@ app.post('/todos', (req, res)=>{
     });
 });
 
-
-app.listen(3000, ()=>{
-  console.log('Started on port 3000...');
-});
-
 app.get('/todos', (req, res)=>{
   Todo.find()
     .then((todos)=>{
@@ -42,6 +37,30 @@ app.get('/todos', (req, res)=>{
     }, (error)=>{
       res.status(400).send(error);
     });
+});
+
+app.get('/todos/:id', (req, res)=>{
+  let id = req.params.id;
+
+  if(!ObjectID.isValid(id)) {
+    return res.status(404).send();
+  }
+
+  Todo.findById(id)
+    .then((todo)=>{
+      if(todo) {
+        res.send({todo});
+      } 
+      else {
+        res.status(404).send();
+      }
+    }, (error)=>{
+      res.status(400).send();
+    });
+});
+
+app.listen(3000, ()=>{
+  console.log('Started on port 3000...');
 });
 
 
