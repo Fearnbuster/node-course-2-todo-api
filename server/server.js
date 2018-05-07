@@ -69,19 +69,19 @@ app.delete('/todos/:id', (req, res)=>{
   let id = req.params.id;
 
   if(!ObjectID.isValid(id)) {
-    return res.status(404).send({});
+    return res.status(404).send();
   }
 
   Todo.findByIdAndRemove(id)
     .then((todo)=>{
       if(!todo) {
-        res.status(404).send({});
+        res.status(404).send();
       }
       else {
         res.send({todo});
       }
     })
-    .catch((error) => res.status(404).send({}));
+    .catch((error) => res.status(404).send());
 });
 
 app.patch('/todos/:id', (req, res)=>{
@@ -113,6 +113,22 @@ app.patch('/todos/:id', (req, res)=>{
       res.status(400).send();
     });
 });
+
+
+app.post('/users', (req, res)=>{
+  let body = _.pick(req.body, ['email','password']);
+  let newUser = new User(body);
+
+  newUser.save()
+    .then(()=>{
+      return newUser.generateAuthToken();
+    })
+    .then((token)=>{
+      res.header('x-auth', token).send(newUser);
+    })
+    .catch((error) => res.status(400).send(error));
+});
+
 
 app.listen(port, ()=>{
   console.log(`Started on port ${port}...`);
