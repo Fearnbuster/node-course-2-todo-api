@@ -1,6 +1,8 @@
 
 // Created: May 7, 2018
 
+const HttpStatus = require('http-status-codes');
+
 let { User } = require('./../models/user');
 
 let authenticate = (req, res, next)=>{
@@ -17,7 +19,7 @@ let authenticate = (req, res, next)=>{
      next();
     })
     .catch((error)=>{
-      res.status(401).send();
+      res.status(HttpStatus.UNAUTHORIZED).send();
     });
 };
 

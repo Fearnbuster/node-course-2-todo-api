@@ -4,6 +4,7 @@
 require('./config/config');
 
 const bodyParser = require('body-parser');
+const HttpStatus = require('http-status-codes');
 const _ = require('lodash');
 const express = require('express');
 const { ObjectID } = require('mongodb');
@@ -33,7 +34,7 @@ app.post('/todos', (req, res)=>{
     .then((todo)=>{
       res.send(todo);
     }, (error)=>{
-      res.status(400).send(error);
+      res.status(HttpStatus.BAD_REQUEST).send(error);
     });
 });
 
@@ -42,7 +43,7 @@ app.get('/todos', (req, res)=>{
     .then((todos)=>{
       res.send({ todos });
     }, (error)=>{
-      res.status(400).send(error);
+      res.status(HttpStatus.BAD_REQUEST).send(error);
     });
 });
 
@@ -50,7 +51,7 @@ app.get('/todos/:id', (req, res)=>{
   let id = req.params.id;
 
   if(!ObjectID.isValid(id)) {
-    return res.status(404).send();
+    return res.status(HttpStatus.NOT_FOUND).send();
   }
 
   Todo.findById(id)
@@ -59,10 +60,10 @@ app.get('/todos/:id', (req, res)=>{
         res.send({todo});
       } 
       else {
-        res.status(404).send();
+        res.status(HttpStatus.NOT_FOUND).send();
       }
     }, (error)=>{
-      res.status(400).send();
+      res.status(HttpStatus.BAD_REQUEST).send();
     });
 });
 
@@ -70,19 +71,19 @@ app.delete('/todos/:id', (req, res)=>{
   let id = req.params.id;
 
   if(!ObjectID.isValid(id)) {
-    return res.status(404).send();
+    return res.status(HttpStatus.NOT_FOUND).send();
   }
 
   Todo.findByIdAndRemove(id)
     .then((todo)=>{
       if(!todo) {
-        res.status(404).send();
+        res.status(HttpStatus.NOT_FOUND).send();
       }
       else {
         res.send({todo});
       }
     })
-    .catch((error) => res.status(404).send());
+    .catch((error) => res.status(HttpStatus.NOT_FOUND).send());
 });
 
 app.patch('/todos/:id', (req, res)=>{
@@ -90,7 +91,7 @@ app.patch('/todos/:id', (req, res)=>{
   let body = _.pick(req.body, ['text', 'completed']);
 
   if(!ObjectID.isValid(id)) {
-    return res.status(404).send();
+    return res.status(HttpStatus.NOT_FOUND).send();
   }
 
   if(_.isBoolean(body.completed) && body.completed) {
@@ -107,11 +108,11 @@ app.patch('/todos/:id', (req, res)=>{
         res.send({todo});
       }
       else {
-        res.status(404).send();
+        res.status(HttpStatus.NOT_FOUND).send();
       }
     })
     .catch((error)=>{
-      res.status(400).send();
+      res.status(HttpStatus.BAD_REQUEST).send();
     });
 });
 
@@ -126,7 +127,7 @@ app.post('/users', (req, res)=>{
     .then((token)=>{
       res.header('x-auth', token).send(newUser);
     })
-    .catch((error) => res.status(400).send(error));
+    .catch((error) => res.status(HttpStatus.BAD_REQUEST).send(error));
 });
 
 app.get('/users/me', authenticate,(req, res)=>{

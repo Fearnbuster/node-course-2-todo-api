@@ -2,33 +2,18 @@
 // Created: May 4, 2018
 
 const expect = require('expect');
+const HttpStatus = require('http-status-codes');
 const { ObjectID } = require('mongodb');
 const request = require('supertest');
 
-let { app } = require('./../server');
+const { app } = require('./../server');
 const { Todo } = require('./../models/todo');
+const { User } = require('./../models/user');
+const { testTodos, testUsers, populateTodos, populateUsers } = require('./seed/seed');
 
-const testTodos = [{
-  _id: new ObjectID(),
-  text: 'First test todo'
-}, {
-  _id: new ObjectID(),
-  text: 'Second test todo',
-  completed: true,
-  completedAt: 333
-}];
 
-beforeEach(function(done){
-  this.timeout(5000);
-
-  Todo.remove()
-    .then((result)=>{
-      return Todo.insertMany(testTodos);
-    })
-    .then((result) => {
-      done()
-    });
-});
+beforeEach(populateUsers);
+beforeEach(populateTodos);
 
 describe('POST /todos', ()=>{
   it('should create a new todo', (done)=>{
@@ -37,7 +22,7 @@ describe('POST /todos', ()=>{
     request(app)
       .post('/todos')
       .send({text})
-      .expect(200)
+      .expect(HttpStatus.OK)
       .expect((response)=>{
         expect(response.body.text)
           .toExist()
@@ -63,7 +48,7 @@ describe('POST /todos', ()=>{
     request(app)
       .post('/todos')
       .send({})
-      .expect(400)
+      .expect(HttpStatus.BAD_REQUEST)
       .end((err, res)=>{
         if(err){
           return done(err);
@@ -84,7 +69,7 @@ describe('GET /todos', ()=>{
   it('should get all todos', (done)=>{
     request(app)
       .get('/todos')
-      .expect(200)
+      .expect(HttpStatus.OK)
       .expect((response)=>{
         expect(response.body.todos.length).toBe(2);
       })
@@ -96,7 +81,7 @@ describe('GET /todos/:id', ()=>{
   it('should return todo doc', (done)=>{
     request(app)
       .get(`/todos/${testTodos[0]._id.toHexString()}`)
-      .expect(200)
+      .expect(HttpStatus.OK)
       .expect((res)=>{
         expect(res.body.todo.text)
           .toExist()
@@ -105,19 +90,19 @@ describe('GET /todos/:id', ()=>{
       .end(done);
   });
 
-  it('should return 404 if todo is not found', (done)=>{
+  it(`should return ${HttpStatus.NOT_FOUND} if todo is not found`, (done)=>{
     request(app)
       .post(`/todos/${ObjectID().toHexString()}`)
-      .expect(404)
+      .expect(HttpStatus.NOT_FOUND)
       .end(done);
   });
 
-  it('should return 404 for non-object ids', (done)=>{
+  it(`should return ${HttpStatus.NOT_FOUND} for non-object ids`, (done)=>{
     const invalidID = 123;
 
     request(app)
       .post(`/todos/${invalidID}`)
-      .expect(404)
+      .expect(HttpStatus.NOT_FOUND)
       .end(done);
   });
 });
@@ -128,7 +113,7 @@ describe('DELETE /todos/:id', ()=>{
 
     request(app)
       .delete(`/todos/${id}`)
-      .expect(200)
+      .expect(HttpStatus.OK)
       .expect((res)=>{
         expect(res.body.todo._id).toBe(id);
       })
@@ -145,21 +130,21 @@ describe('DELETE /todos/:id', ()=>{
       });
   });
 
-  it('should return 404 if todo not found', (done)=>{
+  it(`should return ${HttpStatus.NOT_FOUND} if todo not found`, (done)=>{
     let unusedID = new ObjectID();
 
     request(app)
       .delete(`/todos/${unusedID}`)
-      .expect(404)
+      .expect(HttpStatus.NOT_FOUND)
       .end(done);
   });
 
-  it('should return 404 if object id is invalid', (done)=>{
+  it(`should return ${HttpStatus.NOT_FOUND} if object id is invalid`, (done)=>{
     let invalidID = 123;
 
     request(app)
       .delete(`/todos/${invalidID}`)
-      .expect(404)
+      .expect(HttpStatus.NOT_FOUND)
       .end(done);
   });
 });
@@ -175,7 +160,7 @@ describe('PATCH /todos/:id', ()=>{
         text: newText,
         completed: true
       })
-      .expect(200)
+      .expect(HttpStatus.OK)
       .expect((res)=>{
         expect(res.body.todo.text).toBe(newText);
         expect(res.body.todo.completed).toBe(true);
@@ -194,12 +179,87 @@ describe('PATCH /todos/:id', ()=>{
         text: newText,
         completed: false
       })
-      .expect(200)
+      .expect(HttpStatus.OK)
       .expect((res)=>{
         expect(res.body.todo.text).toBe(newText);
         expect(res.body.todo.completed).toBe(false);
         expect(res.body.todo.completedAt).toNotExist();
       })
+      .end(done);
+  });
+});
+
+describe('GET /users/me', ()=>{
+  it('should return user if authenticated', (done)=>{
+    request(app)
+      .get('/users/me')
+      .set('x-auth', testUsers[0].tokens[0].token)
+      .expect(HttpStatus.OK)
+      .expect((res)=>{
+        expect(res.body._id).toBe(testUsers[0]._id.toHexString());
+        expect(res.body.email).toBe(testUsers[0].email);
+      })
+      .end(done);
+  });
+
+  it(`should return ${HttpStatus.UNAUTHORIZED} if not authenticated`, (done)=>{
+    request(app)
+      .get('/users/me')
+      .expect(HttpStatus.UNAUTHORIZED)
+      .expect((res)=>{
+        expect(res.body).toEqual({});
+      })
+      .end(done);
+  });
+});
+
+describe('POST /users', ()=>{
+  it('should create a user', (done)=>{
+    let email = 'test@example.com';
+    let password = '123456';
+
+    request(app)
+      .post('/users')
+      .send({ email, password })
+      .expect(HttpStatus.OK)
+      .expect((res)=>{
+        expect(res.headers['x-auth']).toExist();
+        expect(res.body._id).toExist();
+        expect(res.body.email).toBe(email);
+      })
+      .end((error)=>{
+        if(error){
+          return done(error);
+        }
+
+        User.findOne({email})
+          .then((user)=>{
+            expect(user).toExist();
+            expect(user.password).toNotBe(password);
+            done();
+          });
+      });
+  });
+
+  it('should return validation errors if request is invalid', (done)=>{
+    let email = 'invalidEmail.com';
+    let password = 'wrong';
+
+    request(app)
+      .post('/users')
+      .send({ email, password })
+      .expect(HttpStatus.BAD_REQUEST)
+      .end(done);
+  });
+
+  it('should not create user if email in use', (done)=>{
+    const email = 'user1@example.com';
+    const password = '123456';
+
+    request(app)
+      .post('/users')
+      .send({ email, password })
+      .expect(HttpStatus.BAD_REQUEST)
       .end(done);
   });
 });
