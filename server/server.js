@@ -11,6 +11,7 @@ const { ObjectID } = require('mongodb');
 let { mongoose } = require('./db/mongoose');
 let { Todo } = require('./models/todo');
 let { User } = require('./models/user');
+let { authenticate } = require('./middleware/authenticate');
 
 
 let app = express();
@@ -114,7 +115,6 @@ app.patch('/todos/:id', (req, res)=>{
     });
 });
 
-
 app.post('/users', (req, res)=>{
   let body = _.pick(req.body, ['email','password']);
   let newUser = new User(body);
@@ -129,6 +129,9 @@ app.post('/users', (req, res)=>{
     .catch((error) => res.status(400).send(error));
 });
 
+app.get('/users/me', authenticate,(req, res)=>{
+  res.send(req.user);
+});
 
 app.listen(port, ()=>{
   console.log(`Started on port ${port}...`);
