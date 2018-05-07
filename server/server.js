@@ -130,7 +130,7 @@ app.post('/users', (req, res)=>{
     .catch((error) => res.status(HttpStatus.BAD_REQUEST).send(error));
 });
 
-app.get('/users/me', authenticate,(req, res)=>{
+app.get('/users/me', authenticate, (req, res)=>{
   res.send(req.user);
 });
 
@@ -145,6 +145,16 @@ app.post('/users/login', (req, res)=>{
         });
     })
     .catch((error)=>{
+      res.status(HttpStatus.BAD_REQUEST).send();
+    });
+});
+
+app.delete('/users/me/token', authenticate, (req, res)=>{
+  req.user.removeToken(req.token)
+    .then(()=>{
+      res.status(HttpStatus.OK).send();
+    })
+    .catch(()=>{
       res.status(HttpStatus.BAD_REQUEST).send();
     });
 });
