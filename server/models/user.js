@@ -2,6 +2,7 @@
 
 // Created: May 4, 2018
 
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const _ = require('lodash');
 const mongoose = require('mongoose');
@@ -37,6 +38,27 @@ let UserSchema = new mongoose.Schema({
       required: true
     }
   }]
+});
+
+UserSchema.pre('save', function(next){
+  let user = this;
+
+  if(user.isModified('password')) {
+    bcrypt.genSalt(10)
+      .then((salt)=>{
+        return bcrypt.hash(user.password, salt);
+      })
+      .then((hashedPassword)=>{
+        user.password = hashedPassword;
+        next();
+      })
+      .catch((error)=>{
+        next();
+      });
+  }
+  else {
+    next();
+  }
 });
 
 UserSchema.statics.findByToken = function(token){
