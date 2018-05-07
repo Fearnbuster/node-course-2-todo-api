@@ -237,7 +237,8 @@ describe('POST /users', ()=>{
             expect(user).toExist();
             expect(user.password).toNotBe(password);
             done();
-          });
+          })
+          .catch((error) => done(error));
       });
   });
 
@@ -261,5 +262,65 @@ describe('POST /users', ()=>{
       .send({ email, password })
       .expect(HttpStatus.BAD_REQUEST)
       .end(done);
+  });
+});
+
+describe('POST /users/login', ()=>{
+  it('should login user and return auth token', (done)=>{
+    let testUser = testUsers[1];
+
+    request(app)
+      .post('/users/login')
+      .send({
+        email: testUser.email,
+        password: testUser.password
+      })
+      .expect(HttpStatus.OK)
+      .expect((res)=>{
+        expect(res.headers['x-auth']).toExist();
+      })
+      .end((error, res)=>{
+        if(error) {
+          return done(error);
+        }
+
+        User.findById(testUser._id)
+          .then((user)=>{
+            expect(user.tokens[0]).toInclude({
+              access: 'auth',
+              token: res.headers['x-auth']
+            });
+            done();
+          })
+          .catch((error) =>  done(error));
+      });
+  });
+
+  it('should reject invalid login', (done)=>{
+    let testUser = testUsers[1];
+    let password = 'wrongPassword';
+
+    request(app)
+      .post('/users/login')
+      .send({
+        email: testUser.email,
+        password: password
+      })
+      .expect(HttpStatus.BAD_REQUEST)
+      .expect((res)=>{
+        expect(res.headers['x-auth']).toNotExist();
+      })
+      .end((error, res)=>{
+        if(error) {
+          return done(error);
+        }
+
+        User.findById(testUser._id)
+          .then((user)=>{
+            expect(user.tokens.length).toBe(0);
+            done();
+          })
+          .catch((error) =>  done(error));
+      });
   });
 });
